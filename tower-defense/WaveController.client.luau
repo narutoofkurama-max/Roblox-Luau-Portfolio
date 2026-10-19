@@ -9,6 +9,7 @@ local TweenService      = game:GetService("TweenService")
 local RunService        = game:GetService("RunService")
 local UserInputService  = game:GetService("UserInputService")
 
+-- RemoteEvents
 local StartWave    = ReplicatedStorage:WaitForChild("StartWave")
 local WaveStarted  = ReplicatedStorage:WaitForChild("WaveStarted")
 local WaveEnded    = ReplicatedStorage:WaitForChild("WaveEnded")
@@ -17,13 +18,19 @@ local TurretDenied = ReplicatedStorage:WaitForChild("TurretDenied")
 
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- Turret template for ghost
 local turretTemplate = ReplicatedStorage:WaitForChild("Turrets"):WaitForChild("BasicTurret")
 
+-- Precompute pivot-to-bottom offset
 local _tc = turretTemplate:Clone()
 local _bcf, _bsz = _tc:GetBoundingBox()
 local PIVOT_TO_BOTTOM = _tc:GetPivot().Position.Y - (_bcf.Position.Y - _bsz.Y / 2)
 _tc:Destroy()
 
+-- ================================================================
+-- REFERENCE GUI INSTANCES FROM EXPLORER
+-- ================================================================
 local gui            = playerGui:WaitForChild("WaveGui")
 local banner         = gui:WaitForChild("WaveBanner")
 local waveLabel      = banner:WaitForChild("WaveLabel")
@@ -34,6 +41,9 @@ local startBtn       = bottomBar:WaitForChild("StartBtn")
 local turretBtn      = bottomBar:WaitForChild("TurretBtn")
 local placementLabel = bottomBar:WaitForChild("PlacementLabel")
 
+-- ================================================================
+-- GHOST PREVIEW SYSTEM
+-- ================================================================
 local placingMode   = false
 local ghostModel    = nil
 local currentHitPos = nil
@@ -43,7 +53,10 @@ local GREEN = Color3.fromRGB(0, 255, 100)
 local RED   = Color3.fromRGB(255, 60, 60)
 
 local function destroyGhost()
-	if ghostModel then ghostModel:Destroy() ghostModel = nil end
+	if ghostModel then
+		ghostModel:Destroy()
+		ghostModel = nil
+	end
 end
 
 local function createGhost()
@@ -51,8 +64,12 @@ local function createGhost()
 	ghostModel.Name = "TurretGhost"
 	for _, p in ipairs(ghostModel:GetDescendants()) do
 		if p:IsA("BasePart") then
-			p.Anchored = true p.CanCollide = false p.CastShadow = false
-			p.Color = GREEN p.Transparency = 0.5 p.Material = Enum.Material.Neon
+			p.Anchored     = true
+			p.CanCollide   = false
+			p.CastShadow   = false
+			p.Color        = GREEN
+			p.Transparency = 0.5
+			p.Material     = Enum.Material.Neon
 		end
 	end
 	ghostModel.Parent = workspace
@@ -60,7 +77,11 @@ end
 
 local function positionGhostAt(surfacePos)
 	if not ghostModel then return end
-	ghostModel:PivotTo(CFrame.new(surfacePos.X, surfacePos.Y + PIVOT_TO_BOTTOM, surfacePos.Z))
+	ghostModel:PivotTo(CFrame.new(
+		surfacePos.X,
+		surfacePos.Y + PIVOT_TO_BOTTOM,
+		surfacePos.Z
+	))
 end
 
 local function tintGhost(ok)
@@ -77,60 +98,71 @@ local function isOverTurret(pos)
 	local op = OverlapParams.new()
 	op.FilterType = Enum.RaycastFilterType.Include
 	op.FilterDescendantsInstances = { turretsFolder }
-	local hits = workspace:GetPartBoundsInBox(CFrame.new(pos), Vector3.new(6, 6, 6), op)
+	local hits = workspace:GetPartBoundsInBox(
+		CFrame.new(pos),
+		Vector3.new(6, 6, 6),
+		op
+	)
 	return #hits > 0
 end
 
+-- Raycast against everything except the ghost itself
 local function getHoverResult()
-	local mouse = player:GetMouse()
-	local camera = workspace.CurrentCamera
+	local mouse   = player:GetMouse()
+	local camera  = workspace.CurrentCamera
 	if not camera then return nil end
 	local unitRay = camera:ScreenPointToRay(mouse.X, mouse.Y)
-	local params = RaycastParams.new()
+	local params  = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = ghostModel
 		and { ghostModel, workspace:WaitForChild("Turrets") }
-		or { workspace:WaitForChild("Turrets") }
+		or  { workspace:WaitForChild("Turrets") }
 	return workspace:Raycast(unitRay.Origin, unitRay.Direction * 500, params)
 end
 
+-- Placement mode loop
 RunService.RenderStepped:Connect(function()
 	if not placingMode then return end
 	local result = getHoverResult()
 	if result then
-		local isPath = result.Instance.Name == "Path" and result.Normal.Y > 0.5
+		-- Only treat it as "on path" when hitting the top face (Normal.Y > 0.5).
+		-- Side faces of path tiles should not block placement.
+		local isPath   = result.Instance.Name == "Path" and result.Normal.Y > 0.5
 		local onTurret = isOverTurret(result.Position)
 		currentHitPos = result.Position
-		canPlace = not isPath and not onTurret
+		canPlace      = not isPath and not onTurret
 		positionGhostAt(result.Position)
 		tintGhost(canPlace)
 	else
 		currentHitPos = nil
-		canPlace = false
+		canPlace      = false
 		if ghostModel then
-			local camera = workspace.CurrentCamera
-			ghostModel:PivotTo(CFrame.new(camera.CFrame.Position + camera.CFrame.LookVector * 20))
+			ghostModel:PivotTo(CFrame.new(
+				camera.CFrame.Position + camera.CFrame.LookVector * 20
+			))
 			tintGhost(false)
 		end
 	end
 end)
 
+-- Enter / exit placement mode
 local function enterPlacementMode()
 	placingMode = true
 	turretBtn.BackgroundColor3 = Color3.fromRGB(200, 80, 30)
-	turretBtn.Text = "✖  CANCEL"
-	placementLabel.Visible = true
+	turretBtn.Text             = "✖  CANCEL"
+	placementLabel.Visible     = true
 	createGhost()
 end
 
 local function exitPlacementMode()
 	placingMode = false
 	turretBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 220)
-	turretBtn.Text = "🔧  PLACE TURRET"
-	placementLabel.Visible = false
+	turretBtn.Text             = "🔧  PLACE TURRET"
+	placementLabel.Visible     = false
 	destroyGhost()
 end
 
+-- Click to place
 local mouse = player:GetMouse()
 mouse.Button1Down:Connect(function()
 	if not placingMode then return end
@@ -139,60 +171,70 @@ mouse.Button1Down:Connect(function()
 	exitPlacementMode()
 end)
 
+-- ESC to cancel
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end
-	if input.KeyCode == Enum.KeyCode.Escape and placingMode then exitPlacementMode() end
+	if input.KeyCode == Enum.KeyCode.Escape and placingMode then
+		exitPlacementMode()
+	end
 end)
 
 turretBtn.MouseButton1Click:Connect(function()
-	if placingMode then exitPlacementMode() else enterPlacementMode() end
+	if placingMode then
+		exitPlacementMode()
+	else
+		enterPlacementMode()
+	end
 end)
 
 TurretDenied.OnClientEvent:Connect(function(reason)
-	flash.Text = "Can't place there!"
-	flash.TextColor3 = Color3.fromRGB(255, 80, 80)
+	flash.Text             = "Can't place there!"
+	flash.TextColor3       = Color3.fromRGB(255, 80, 80)
 	flash.TextTransparency = 0
 	TweenService:Create(flash, TweenInfo.new(1.5), {TextTransparency=1, TextSize=100}):Play()
 end)
 
+-- ================================================================
+-- WAVE GUI LOGIC
+-- ================================================================
 local function setStartBtn(active)
 	if active then
-		startBtn.Text = "▶  START WAVE"
+		startBtn.Text             = "▶  START WAVE"
 		startBtn.BackgroundColor3 = Color3.fromRGB(30, 180, 80)
-		startBtn.Active = true
+		startBtn.Active           = true
 	else
-		startBtn.Text = "⏳  WAVE IN PROGRESS..."
+		startBtn.Text             = "⏳  WAVE IN PROGRESS..."
 		startBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-		startBtn.Active = false
+		startBtn.Active           = false
 	end
 end
 
 local function showBanner(wNum, total, count)
 	banner.Visible = true
 	waveLabel.Text = string.format("WAVE %d / %d", wNum, total)
-	subLabel.Text = string.format("%d slimes incoming! 🟢", count)
+	subLabel.Text  = string.format("%d slimes incoming! 🟢", count)
 	for _, l in ipairs({banner, waveLabel, subLabel}) do
-		if l:IsA("GuiObject") then l.BackgroundTransparency = 1 end
-		if l:IsA("TextLabel") then l.TextTransparency = 1 end
+		if l:IsA("GuiObject")  then l.BackgroundTransparency = 1 end
+		if l:IsA("TextLabel")  then l.TextTransparency = 1 end
 	end
 	local ti = TweenInfo.new(0.4, Enum.EasingStyle.Quad)
-	TweenService:Create(banner, ti, {BackgroundTransparency=0.3}):Play()
+	TweenService:Create(banner,    ti, {BackgroundTransparency=0.3}):Play()
 	TweenService:Create(waveLabel, ti, {TextTransparency=0}):Play()
-	TweenService:Create(subLabel, ti, {TextTransparency=0}):Play()
+	TweenService:Create(subLabel,  ti, {TextTransparency=0}):Play()
 end
 
 local function hideBanner()
 	local ti = TweenInfo.new(0.4)
-	TweenService:Create(banner, ti, {BackgroundTransparency=1}):Play()
+	TweenService:Create(banner,    ti, {BackgroundTransparency=1}):Play()
 	TweenService:Create(waveLabel, ti, {TextTransparency=1}):Play()
-	TweenService:Create(subLabel, ti, {TextTransparency=1}):Play()
+	TweenService:Create(subLabel,  ti, {TextTransparency=1}):Play()
 	task.delay(0.5, function() banner.Visible = false end)
 end
 
 local function flashMsg(msg, color)
-	flash.Text = msg
-	flash.TextColor3 = color or Color3.fromRGB(255, 255, 255)
-	flash.TextSize = 72
+	flash.Text             = msg
+	flash.TextColor3       = color or Color3.fromRGB(255, 255, 255)
+	flash.TextSize         = 72
 	flash.TextTransparency = 0
 	TweenService:Create(flash, TweenInfo.new(1.5, Enum.EasingStyle.Quad), {TextTransparency=1, TextSize=100}):Play()
 end
