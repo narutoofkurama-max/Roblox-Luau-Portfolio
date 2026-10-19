@@ -1,0 +1,13 @@
+# Roblox Studio and local editor state
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+.idea/
+.vscode/
+
+# Local exports and generated data
+*.json
+*.csv
+*.tmp
+logs/
