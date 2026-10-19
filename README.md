@@ -2,6 +2,21 @@
 
 Selected Roblox/Luau scripting work from personal development projects. These samples are presented as code-focused portfolio pieces rather than complete games or downloadable projects.
 
+## Browse the code samples
+
+These are direct links to individual Luau files, provided for convenient code review. The examples are excerpts from personal projects and should not be assumed to satisfy a particular platform's application requirements.
+
+| System | Server or client | Source code |
+| --- | --- | --- |
+| Tower-defense waves, placement validation and targeting | Server | [WaveManager.server.luau](tower-defense/WaveManager.server.luau) |
+| Plot ownership, purchases, upgrades and first-visit state | Server | [TomatoStarterServer.server.luau](progression-economy/TomatoStarterServer.server.luau) |
+| Interactive wave and placement UI | Client | [WaveController.client.luau](tower-defense/WaveController.client.luau) |
+| HUD, tutorial and responsive UI | Client | [TomatoStarterClient.client.luau](progression-economy/TomatoStarterClient.client.luau) |
+| Runtime vehicle mesh reconstruction | Client | [VehicleMeshLoader.client.luau](vehicle-systems/VehicleMeshLoader.client.luau) |
+| Vehicle handling and camera comfort (A-Chassis integration) | Client | [VehicleDrivingComfort.client.luau](vehicle-systems/VehicleDrivingComfort.client.luau) |
+
+**Demonstration status:** The repository contains source samples, not a publicly linked playable demonstration. Project-specific dependencies are described below.
+
 ## Skills demonstrated
 
 - Client/server separation with RemoteEvents
