@@ -1,11 +1,8 @@
--- ================================================================
--- WaveManager  (ServerScriptService)
--- ================================================================
+
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local Workspace          = game:GetService("Workspace")
 local Debris             = game:GetService("Debris")
 
--- ── RemoteEvents ─────────────────────────────────────────────
 local StartWave    = ReplicatedStorage:WaitForChild("StartWave")
 local WaveStarted  = ReplicatedStorage:WaitForChild("WaveStarted")
 local WaveEnded    = ReplicatedStorage:WaitForChild("WaveEnded")
@@ -13,17 +10,15 @@ local PlaceTurret  = ReplicatedStorage:WaitForChild("PlaceTurret")
 local TurretPlaced = ReplicatedStorage:WaitForChild("TurretPlaced")
 local TurretDenied = ReplicatedStorage:WaitForChild("TurretDenied")
 
--- ── Templates ─────────────────────────────────────────────────
+
 local slimeTemplate  = ReplicatedStorage:WaitForChild("Slimes"):WaitForChild("Slime")
 local turretTemplate = ReplicatedStorage:WaitForChild("Turrets"):WaitForChild("BasicTurret")
 local bulletTemplate = ReplicatedStorage:WaitForChild("Bullets"):WaitForChild("Bullet")
 
--- ── Folders ───────────────────────────────────────────────────
 local spawnPart       = Workspace:WaitForChild("SpawnPart")
 local waypointsFolder = Workspace:WaitForChild("Waypoints")
 local turretsFolder   = Workspace:WaitForChild("Turrets")
 
--- Collect path parts for placement validation
 local pathParts = {}
 for _, v in ipairs(Workspace:GetChildren()) do
 	if v.Name == "Path" and v:IsA("BasePart") then
@@ -31,7 +26,7 @@ for _, v in ipairs(Workspace:GetChildren()) do
 	end
 end
 
--- Precompute pivot-to-bbox-bottom for the turret template
+
 local _tc = turretTemplate:Clone()
 local _bcf, _bsz = _tc:GetBoundingBox()
 local PIVOT_TO_BOTTOM = _tc:GetPivot().Position.Y - (_bcf.Position.Y - _bsz.Y / 2)
@@ -60,7 +55,7 @@ local function isOnPath(pos)
 	)
 	return #hits > 0
 end
--- ── Ordered waypoints ─────────────────────────────────────────
+
 local waypoints = {}
 for i = 1, 100 do
 	local wp = waypointsFolder:FindFirstChild(tostring(i))
@@ -69,7 +64,6 @@ for i = 1, 100 do
 end
 print("[WaveManager] Waypoints:", #waypoints)
 
--- ── Wave config ───────────────────────────────────────────────
 local WAVE_CONFIG = {
 	{ count = 2, spawnDelay = 1.5, speed = 5, health = 10 },
 	{ count = 7, spawnDelay = 1.5, speed = 5, health = 10 },
@@ -78,7 +72,7 @@ local WAVE_CONFIG = {
 	{ count = 25, spawnDelay = 1.5, speed = 5, health = 10 },
 }
 
--- ── State ─────────────────────────────────────────────────────
+
 local currentWave   = 0
 local waveActive    = false
 local activeSlimes  = {}
@@ -86,9 +80,7 @@ local placedTurrets = {}
 local placementCooldown = {}
 local waveRequestCooldown = {}
 
--- ================================================================
--- HEALTH BAR
--- ================================================================
+
 local function makeHealthBar(parent, maxHp, hpRef)
 	local bb = Instance.new("BillboardGui")
 	bb.Size        = UDim2.new(0, 60, 0, 8)
@@ -119,9 +111,7 @@ local function makeHealthBar(parent, maxHp, hpRef)
 	return update
 end
 
--- ================================================================
--- SLIME SYSTEM
--- ================================================================
+
 local ARRIVE = 2.5
 
 local function faceDir(part, dir2D)
@@ -199,9 +189,7 @@ local function spawnSlime(cfg)
 	end)
 end
 
--- ================================================================
--- WAVE RUNNER
--- ================================================================
+
 local function allDead()
 	for _, e in ipairs(activeSlimes) do
 		if e.part and e.part.Parent then return false end
@@ -235,9 +223,7 @@ StartWave.OnServerEvent:Connect(function(player)
 	runWave(currentWave)
 end)
 
--- ================================================================
--- TURRET PLACEMENT
--- ================================================================
+
 local function placeTurret(pos)
 	local model = turretTemplate:Clone()
 	model.Name  = "Turret"
@@ -346,9 +332,7 @@ PlaceTurret.OnServerEvent:Connect(function(player, pos)
 	print("[WaveManager] Turret placed at", pos, "by", player.Name)
 end)
 
--- ================================================================
--- TURRET SHOOT LOOP
--- ================================================================
+
 local function shootBullet(entry, targetPos)
 	local origin = entry.shoot.Position
 	local dir    = (targetPos - origin)
@@ -421,7 +405,7 @@ game:GetService("Players").PlayerRemoving:Connect(function(player)
 	waveRequestCooldown[player.UserId] = nil
 end)
 
--- Main loop
+
 task.spawn(function()
 	while true do
 		task.wait(0.1)
